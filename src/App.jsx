@@ -377,7 +377,7 @@ const SelectView = memo(function SelectView({
   )
 })
 
-function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraSpecsInView, collapsedSections, setCollapsedSections, fetchingIds, refreshProduct, setView }) {
+function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraSpecsInView, collapsedSections, setCollapsedSections, fetchingIds, refreshProduct, setView, fillGaps, gapFillProgress }) {
   const ordered = [
     ...selectedProducts.filter(p => p.id === benchmarkId),
     ...selectedProducts.filter(p => p.id !== benchmarkId),
@@ -399,8 +399,22 @@ function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraS
         <span className="text-sm font-semibold text-gray-900 dark:text-white flex-1 text-center">
           Compare ({ordered.length})
         </span>
-        <div className="w-12" />
+        <button
+          onClick={fillGaps}
+          disabled={!!gapFillProgress}
+          className="text-xs font-medium disabled:opacity-50"
+          style={{ color: BB_BLUE }}
+        >
+          {gapFillProgress ? `${gapFillProgress.current}/${gapFillProgress.total}` : 'Fill gaps'}
+        </button>
       </div>
+      {gapFillProgress && (
+        <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+            Checking: {gapFillProgress.label}
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto spec-table-scroll">
         <table className="min-w-max w-full border-collapse text-sm">
@@ -592,6 +606,7 @@ export default function App() {
   const [collapsedSections, setCollapsedSections] = useState({})
   const [fetchingIds, setFetchingIds] = useState(new Set())
   const [initProgress, setInitProgress] = useState(null)
+  const [gapFillProgress, setGapFillProgress] = useState(null)
   const [addForm, setAddForm] = useState({ category: 'Wearables', brand: '', model: '', variant: '', size: '', colors: '' })
   const [addError, setAddError] = useState('')
   const [addSaving, setAddSaving] = useState(false)
@@ -695,6 +710,58 @@ export default function App() {
       setFetchingIds(prev => { const s = new Set(prev); s.delete(product.id); return s })
     }
   }, [])
+
+  const fillGaps = useCallback(async () => {
+    const sel = products.filter(p => selected.includes(p.id))
+    if (!sel.length) return
+
+    const extraCols = specColumns.filter(c => c.category === 'extra')
+    const allCats = [
+      ...SPEC_CATEGORIES,
+      ...(extraCols.length
+        ? [{ key: 'extra', label: 'Extra Features', specs: extraCols.map(c => ({ name: c.spec_name, type: c.spec_type })) }]
+        : []),
+    ]
+
+    const work = []
+    for (const cat of allCats) {
+      for (const spec of cat.specs) {
+        const missing = sel.filter(p => {
+          const s = specs.find(r => r.product_id === p.id && r.category === cat.key && r.spec_name === spec.name)
+          return !s || !s.verified || s.spec_value === null
+        })
+        if (missing.length) work.push({ cat, spec, missing })
+      }
+    }
+
+    if (!work.length) return
+
+    setGapFillProgress({ current: 0, total: work.length, label: '' })
+    for (let i = 0; i < work.length; i++) {
+      const { cat, spec, missing } = work[i]
+      setGapFillProgress({ current: i + 1, total: work.length, label: spec.name })
+      try {
+        const { results } = await apiBatchCheck(
+          missing.map(p => ({ id: p.id, name: productName(p) })),
+          spec.name,
+          spec.type,
+        )
+        const rows = Object.entries(results).map(([pid, val]) => ({
+          product_id: pid,
+          category: cat.key,
+          spec_name: spec.name,
+          spec_value: val === null ? null : String(val),
+          verified: val !== null,
+        }))
+        if (rows.length) {
+          await supabase.from('specs').upsert(rows, { onConflict: 'product_id,category,spec_name', ignoreDuplicates: false })
+        }
+      } catch (err) {
+        console.warn(`Fill gaps error for ${spec.name}:`, err)
+      }
+    }
+    setGapFillProgress(null)
+  }, [products, selected, specs, specColumns])
 
   const toggleSelect = useCallback((id) => {
     setSelected(prev => {
@@ -813,6 +880,8 @@ export default function App() {
             fetchingIds={fetchingIds}
             refreshProduct={refreshProduct}
             setView={setView}
+            fillGaps={fillGaps}
+            gapFillProgress={gapFillProgress}
           />
         )}
         {view === 'add' && (
