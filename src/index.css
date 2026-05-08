@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --bb-blue: #0046BE;
+}
+
+@theme {
+  --color-bb-blue: #0046BE;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+.spec-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Freeze first column in compare table */
+.freeze-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
