@@ -135,16 +135,6 @@ function productName(p) {
   return [p.brand, p.model, p.variant, p.size].filter(Boolean).join(' ')
 }
 
-function scoreProduct(productId, specs) {
-  let score = 0
-  for (const s of specs) {
-    if (s.product_id !== productId || !s.verified) continue
-    if (s.spec_value === 'true') score += 1
-    else if (s.spec_value && s.spec_value !== 'false' && s.spec_value !== 'null') score += 0.5
-  }
-  return score
-}
-
 // ─── API calls ───────────────────────────────────────────────────────────────
 async function apiFetchSpecs(product) {
   const payload = {
@@ -377,7 +367,7 @@ const SelectView = memo(function SelectView({
   )
 })
 
-function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraSpecsInView, collapsedSections, setCollapsedSections, fetchingIds, refreshProduct, setView, fillGaps, gapFillProgress }) {
+function CompareView({ selectedProducts, benchmarkId, toggleBenchmark, specs, specColumns, extraSpecsInView, collapsedSections, setCollapsedSections, fetchingIds, refreshProduct, setView, fillGaps, gapFillProgress }) {
   const ordered = [
     ...selectedProducts.filter(p => p.id === benchmarkId),
     ...selectedProducts.filter(p => p.id !== benchmarkId),
@@ -426,20 +416,20 @@ function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraS
               {ordered.map(p => (
                 <th
                   key={p.id}
-                  className="freeze-row bg-white dark:bg-gray-950 px-3 py-3 text-center text-xs font-semibold border-b border-gray-200 dark:border-gray-700 min-w-[120px]"
+                  onClick={() => toggleBenchmark(p.id)}
+                  className="freeze-row bg-white dark:bg-gray-950 px-3 py-3 text-center text-xs font-semibold border-b border-gray-200 dark:border-gray-700 min-w-[120px] cursor-pointer select-none"
+                  title={p.id === benchmarkId ? 'Tap to clear reference' : 'Tap to set as reference'}
                 >
                   <div className="flex flex-col items-center gap-1">
-                    {p.id === benchmarkId && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ background: BB_BLUE }}>
-                        Best
-                      </span>
-                    )}
+                    {p.id === benchmarkId
+                      ? <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ background: BB_BLUE }}>Reference</span>
+                      : <span className="text-[10px] uppercase tracking-wider text-gray-300 dark:text-gray-600">Tap to set</span>}
                     <span className="dark:text-white text-gray-800" style={p.id === benchmarkId ? { color: BB_BLUE } : {}}>{p.brand}</span>
                     <span className="font-normal text-[11px] text-gray-500 dark:text-gray-400">
                       {p.model}{p.variant ? ` ${p.variant}` : ''}
                     </span>
                     <button
-                      onClick={() => refreshProduct(p)}
+                      onClick={(e) => { e.stopPropagation(); refreshProduct(p) }}
                       className="text-[10px] text-gray-400 hover:text-gray-600 mt-0.5"
                     >
                       {fetchingIds.has(p.id) ? '⟳ syncing…' : '↻ refresh'}
@@ -607,6 +597,7 @@ export default function App() {
   const [fetchingIds, setFetchingIds] = useState(new Set())
   const [initProgress, setInitProgress] = useState(null)
   const [gapFillProgress, setGapFillProgress] = useState(null)
+  const [benchmarkId, setBenchmarkId] = useState(null)
   const [addForm, setAddForm] = useState({ category: 'Wearables', brand: '', model: '', variant: '', size: '', colors: '' })
   const [addError, setAddError] = useState('')
   const [addSaving, setAddSaving] = useState(false)
@@ -819,12 +810,11 @@ export default function App() {
 
   const selectedProducts = products.filter(p => selected.includes(p.id))
 
-  const benchmarkId = selectedProducts.length
-    ? selectedProducts.reduce((best, p) =>
-        scoreProduct(p.id, specs) > scoreProduct(best.id, specs) ? p : best,
-        selectedProducts[0],
-      ).id
-    : null
+  const effectiveBenchmarkId = benchmarkId && selected.includes(benchmarkId) ? benchmarkId : null
+
+  const toggleBenchmark = useCallback((id) => {
+    setBenchmarkId(prev => prev === id ? null : id)
+  }, [])
 
   const extraSpecsInView = specColumns.filter(col =>
     selectedProducts.some(p =>
@@ -871,7 +861,8 @@ export default function App() {
         {view === 'compare' && (
           <CompareView
             selectedProducts={selectedProducts}
-            benchmarkId={benchmarkId}
+            benchmarkId={effectiveBenchmarkId}
+            toggleBenchmark={toggleBenchmark}
             specs={specs}
             specColumns={specColumns}
             extraSpecsInView={extraSpecsInView}
