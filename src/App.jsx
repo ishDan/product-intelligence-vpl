@@ -420,13 +420,13 @@ function CompareView({ selectedProducts, benchmarkId, specs, specColumns, extraS
         <table className="min-w-max w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="freeze-col bg-white dark:bg-gray-950 px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 w-36">
+              <th className="freeze-corner bg-white dark:bg-gray-950 px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 w-36">
                 Spec
               </th>
               {ordered.map(p => (
                 <th
                   key={p.id}
-                  className="px-3 py-3 text-center text-xs font-semibold border-b border-gray-200 dark:border-gray-700 min-w-[120px]"
+                  className="freeze-row bg-white dark:bg-gray-950 px-3 py-3 text-center text-xs font-semibold border-b border-gray-200 dark:border-gray-700 min-w-[120px]"
                 >
                   <div className="flex flex-col items-center gap-1">
                     {p.id === benchmarkId && (

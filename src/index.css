@@ -27,3 +27,18 @@ body {
   left: 0;
   z-index: 10;
 }
+
+/* Freeze header row in compare table */
+.freeze-row {
+  position: sticky;
+  top: 0;
+  z-index: 11;
+}
+
+/* Top-left corner: both row + column sticky, must stay above all */
+.freeze-corner {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 20;
+}
