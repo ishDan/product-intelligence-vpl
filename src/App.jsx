@@ -126,7 +126,7 @@ const SpecCell = memo(function SpecCell({ productId, category, specName, specTyp
   )
 })
 
-const API_PIN = '1234'
+const API_PIN = '190675'
 
 function SettingsModal({ apiAllowed, toggleApiAllowed, onClose }) {
   const [pinEntry, setPinEntry] = useState('')
