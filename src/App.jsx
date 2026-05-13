@@ -106,8 +106,21 @@ const SpecCell = memo(function SpecCell({ productId, category, specName, specTyp
     )
   }
 
+  const items = val.includes(',') ? val.split(',').map(s => s.trim()).filter(Boolean) : null
+  if (items && items.length > 3) {
+    const lines = []
+    for (let i = 0; i < items.length; i += 3) {
+      lines.push(items.slice(i, i + 3).join(', '))
+    }
+    return (
+      <td className={`px-3 py-2 text-center text-xs text-gray-900 dark:text-gray-100 max-w-[180px] ${isMissing ? 'opacity-40' : ''}`}>
+        {lines.map((line, idx) => <div key={idx}>{line}{idx < lines.length - 1 ? ',' : ''}</div>)}
+      </td>
+    )
+  }
+
   return (
-    <td className={`px-3 py-2 text-center text-xs text-gray-900 dark:text-gray-100 ${isMissing ? 'opacity-40' : ''}`}>
+    <td className={`px-3 py-2 text-center text-xs text-gray-900 dark:text-gray-100 max-w-[180px] whitespace-normal ${isMissing ? 'opacity-40' : ''}`}>
       {val}
     </td>
   )
