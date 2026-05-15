@@ -146,7 +146,7 @@ function SettingsModal({ apiAllowed, toggleApiAllowed, onClose }) {
 
   function handlePinSubmit(e) {
     e.preventDefault()
-    if (pinEntry.trim() === API_PIN) {
+    if (API_PIN && pinEntry.trim() === API_PIN) {
       setShowPin(false)
       toggleApiAllowed()
     } else {
