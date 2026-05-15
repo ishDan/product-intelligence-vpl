@@ -133,7 +133,7 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [successVariant, setSuccessVariant] = useState(null)
+  const [successLabel, setSuccessLabel] = useState('')
   const [customMode, setCustomMode] = useState(preselect?.customMode ?? false)
   const [customProduct, setCustomProduct] = useState(preselect?.customProduct ?? '')
 
@@ -199,6 +199,13 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
     ) ?? null
   }, [variants, brand, model, variantText, color, size, needsSize, variantTexts])
 
+  // Valid when model is selected but no color — allows submitting without a specific color
+  const partialMatch = useMemo(() => {
+    if (!model) return null
+    if (variantTexts.length > 0 && !variantText) return null
+    return { brand, model, variant: variantText }
+  }, [brand, model, variantText, variantTexts])
+
   const searchResults = useMemo(() => {
     if (!search.trim()) return []
     const q = search.toLowerCase()
@@ -240,15 +247,24 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
   }
 
   async function handleSubmit() {
-    if (customMode ? !customProduct.trim() : !matched) return
+    if (customMode ? !customProduct.trim() : !matched && !partialMatch) return
     setSubmitting(true)
     try {
-      await onSubmit(
-        customMode ? null : matched.id,
-        notes.trim() || null,
-        customMode ? customProduct.trim() : null
-      )
-      setSuccessVariant(customMode ? null : matched)
+      let variantId = null
+      let customStr = null
+      let label = ''
+      if (customMode) {
+        customStr = customProduct.trim()
+        label = customStr
+      } else if (matched) {
+        variantId = matched.id
+        label = [matched.product.brand, matched.product.model, matched.color, matched.size].filter(Boolean).join(' · ')
+      } else {
+        customStr = [partialMatch.brand, partialMatch.model, partialMatch.variant].filter(Boolean).join(' ')
+        label = customStr
+      }
+      await onSubmit(variantId, notes.trim() || null, customStr)
+      setSuccessLabel(label)
       setSuccess(true)
       setTimeout(onClose, 1400)
     } catch (err) {
@@ -260,17 +276,12 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
   const sel = `border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none w-full rounded-xl`
 
   if (success) {
-    const sv = successVariant
     return (
       <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
         <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl px-6 py-10 flex flex-col items-center gap-3">
           <span className="text-5xl" style={{ color: BB_BLUE }}>✓</span>
           <p className="text-lg font-bold text-gray-900 dark:text-white">Logged</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-            {sv
-              ? `${sv.product.brand} ${sv.product.model}${sv.color ? ` · ${sv.color}` : ''}${sv.size ? ` · ${sv.size}` : ''}`
-              : customProduct}
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">{successLabel}</p>
         </div>
       </div>
     )
@@ -434,15 +445,16 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
           </div>}
 
           {/* Selected product summary */}
-          {!customMode && matched && (
+          {!customMode && (matched || partialMatch) && (
             <div className="rounded-xl border-2 p-3 flex items-start justify-between gap-3" style={{ borderColor: BB_BLUE }}>
               <div>
                 <p className="text-xs font-bold text-gray-900 dark:text-white">
-                  {matched.product.brand} {matched.product.model}
-                  {matched.variant ? ` · ${matched.variant}` : ''}
+                  {matched
+                    ? `${matched.product.brand} ${matched.product.model}${matched.variant ? ` · ${matched.variant}` : ''}`
+                    : `${partialMatch.brand} ${partialMatch.model}${partialMatch.variant ? ` · ${partialMatch.variant}` : ''}`}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {[matched.color, matched.size].filter(Boolean).join(' · ')}
+                  {matched ? [matched.color, matched.size].filter(Boolean).join(' · ') : 'Any color'}
                 </p>
               </div>
               <button onClick={reset} className="text-xs text-gray-400 shrink-0">Reset</button>
@@ -450,7 +462,7 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
           )}
 
           {/* Notes */}
-          {(matched || customMode) && (
+          {(matched || partialMatch || customMode) && (
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 block">Notes (optional)</label>
               <input
@@ -473,7 +485,7 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, preselect }) {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={customMode ? !customProduct.trim() || submitting : !matched || submitting}
+              disabled={customMode ? !customProduct.trim() || submitting : (!matched && !partialMatch) || submitting}
               className="flex-1 rounded-xl py-4 text-sm font-bold text-white transition-opacity disabled:opacity-40"
               style={{ background: BB_BLUE }}
             >
