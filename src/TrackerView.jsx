@@ -587,9 +587,7 @@ export default function TrackerView({ variants, logs, onSubmitLog }) {
 
         {/* Demand graph */}
         <div>
-          <h2 className="text-sm font-bold text-gray-900 dark:text-white px-4 mb-1">
-            Demand Trends <span className="text-gray-400 font-normal">({logs.length} logs, {variants.length} variants)</span>
-          </h2>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white px-4 mb-1">Demand Trends</h2>
           <DemandGraph logs={logs} variantMap={variantMap} />
         </div>
       </div>
