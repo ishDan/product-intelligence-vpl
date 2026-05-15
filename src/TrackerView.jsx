@@ -589,7 +589,64 @@ function DemandGraph({ logs, variantMap }) {
 
 // ─── TrackerView ──────────────────────────────────────────────────────────────
 
-export default function TrackerView({ variants, logs, onSubmitLog }) {
+function RecentLogs({ logs, variantMap, onDelete }) {
+  const [confirmId, setConfirmId] = useState(null)
+  const recent = logs.slice(0, 20)
+
+  if (recent.length === 0) return null
+
+  function logLabel(log) {
+    if (log.custom_product) return log.custom_product
+    const v = variantMap[log.variant_id]
+    if (!v) return 'Unknown'
+    return [v.product.brand, v.product.model, v.color, v.size].filter(Boolean).join(' · ')
+  }
+
+  function formatTime(ts) {
+    const d = new Date(ts)
+    const now = new Date()
+    const diffMs = now - d
+    const diffMin = Math.floor(diffMs / 60000)
+    const diffHr = Math.floor(diffMin / 60)
+    const diffDay = Math.floor(diffHr / 24)
+    if (diffMin < 1) return 'just now'
+    if (diffMin < 60) return `${diffMin}m ago`
+    if (diffHr < 24) return `${diffHr}h ago`
+    return `${diffDay}d ago`
+  }
+
+  return (
+    <div className="px-4 pb-6">
+      <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Recent Logs</h2>
+      <div className="flex flex-col gap-2">
+        {recent.map(log => (
+          <div key={log.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{logLabel(log)}</p>
+              {log.notes && <p className="text-[10px] text-gray-400 truncate mt-0.5">{log.notes}</p>}
+              <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(log.logged_at)}</p>
+            </div>
+            {confirmId === log.id ? (
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => setConfirmId(null)} className="text-xs text-gray-400 px-2 py-1">Keep</button>
+                <button
+                  onClick={() => { onDelete(log.id); setConfirmId(null) }}
+                  className="text-xs font-semibold text-white px-2 py-1 rounded-lg bg-red-500"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmId(log.id)} className="text-gray-300 dark:text-gray-600 text-lg px-1 shrink-0">✕</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function TrackerView({ variants, logs, onSubmitLog, onDeleteLog }) {
   const [showSheet, setShowSheet] = useState(false)
   const [preselect, setPreselect] = useState(null)
 
@@ -659,6 +716,11 @@ export default function TrackerView({ variants, logs, onSubmitLog }) {
           <h2 className="text-sm font-bold text-gray-900 dark:text-white px-4 mb-1">Demand Trends</h2>
           <DemandGraph logs={logs} variantMap={variantMap} />
         </div>
+
+        <div className="border-t border-gray-100 dark:border-gray-800 mx-4 my-3" />
+
+        {/* Recent logs with delete */}
+        <RecentLogs logs={logs} variantMap={variantMap} onDelete={onDeleteLog} />
       </div>
 
       {/* FAB */}

@@ -787,6 +787,11 @@ export default function App() {
     }
   }, [apiAllowed])
 
+  const deleteLog = useCallback(async (logId) => {
+    await supabase.from('tracker_logs').delete().eq('id', logId)
+    setTrackerLogs(prev => prev.filter(l => l.id !== logId))
+  }, [])
+
   const submitLog = useCallback(async (variantId, notes, customProduct) => {
     const { error } = await supabase.from('tracker_logs').insert({
       variant_id: variantId ?? null,
@@ -917,6 +922,7 @@ export default function App() {
             variants={trackerVariants}
             logs={trackerLogs}
             onSubmitLog={submitLog}
+            onDeleteLog={deleteLog}
           />
         ) : (
           <>
