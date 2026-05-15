@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import TrackerView from './TrackerView.jsx'
 
 // ─── Supabase ────────────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -689,6 +690,7 @@ function ProductForm({ setView, editProductId, products, specs, apiAllowed, save
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const [tab, setTab] = useState('compare')
   const [view, setView] = useState('select')
   const [editProductId, setEditProductId] = useState(null)
   const [products, setProducts] = useState([])
@@ -701,15 +703,21 @@ export default function App() {
   const [benchmarkId, setBenchmarkId] = useState(null)
   const [apiAllowed, setApiAllowed] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [trackerVariants, setTrackerVariants] = useState([])
+  const [trackerLogs, setTrackerLogs] = useState([])
 
   const loadAll = useCallback(async () => {
-    const [{ data: prods }, { data: sp }, { data: state }] = await Promise.all([
+    const [{ data: prods }, { data: sp }, { data: state }, { data: tvars }, { data: tlogs }] = await Promise.all([
       supabase.from('products').select('*').order('brand').order('model'),
       supabase.from('specs').select('*').range(0, 49999),
       supabase.from('app_state').select('*'),
+      supabase.from('tracker_variants').select('*, product:products(brand, model, name, category)'),
+      supabase.from('tracker_logs').select('*').order('logged_at', { ascending: false }).limit(5000),
     ])
     setProducts(prods ?? [])
     setSpecs(sp ?? [])
+    setTrackerVariants(tvars ?? [])
+    setTrackerLogs(tlogs ?? [])
     const apiState = (state ?? []).find(s => s.key === 'allow_api_calls')
     setApiAllowed(apiState?.value === 'true')
   }, [])
@@ -728,6 +736,10 @@ export default function App() {
         if (payload.new?.key === 'allow_api_calls') {
           setApiAllowed(payload.new.value === 'true')
         }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tracker_logs' }, () => {
+        supabase.from('tracker_logs').select('*').order('logged_at', { ascending: false }).limit(5000)
+          .then(({ data }) => setTrackerLogs(data ?? []))
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -759,6 +771,13 @@ export default function App() {
       setFetchingIds(prev => { const s = new Set(prev); s.delete(product.id); return s })
     }
   }, [apiAllowed])
+
+  const submitLog = useCallback(async (variantId, notes) => {
+    const { error } = await supabase.from('tracker_logs').insert({ variant_id: variantId, notes: notes ?? null })
+    if (error) throw error
+    const { data } = await supabase.from('tracker_logs').select('*').order('logged_at', { ascending: false }).limit(5000)
+    setTrackerLogs(data ?? [])
+  }, [])
 
   const toggleSelect = useCallback((id) => {
     setSelected(prev => {
@@ -865,7 +884,7 @@ export default function App() {
           >
             ⚙
           </button>
-          {view === 'select' && (
+          {tab === 'compare' && view === 'select' && (
             <button onClick={() => { setEditProductId(null); setView('add') }} className="text-sm font-medium" style={{ color: BB_BLUE }}>
               + Add
             </button>
@@ -874,50 +893,60 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-hidden relative">
-        {view === 'select' && (
-          <SelectView
-            search={search}
-            setSearch={setSearch}
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-            selected={selected}
-            setSelected={setSelected}
-            toggleSelect={toggleSelect}
-            openEdit={openEdit}
-            filteredProducts={filteredProducts}
-            brands={brands}
-            specs={specs}
-            fetchingIds={fetchingIds}
+        {tab === 'tracker' ? (
+          <TrackerView
+            variants={trackerVariants}
+            logs={trackerLogs}
+            onSubmitLog={submitLog}
           />
-        )}
-        {view === 'compare' && (
-          <CompareView
-            selectedProducts={selectedProducts}
-            benchmarkId={effectiveBenchmarkId}
-            toggleBenchmark={toggleBenchmark}
-            specs={specs}
-            collapsedSections={collapsedSections}
-            setCollapsedSections={setCollapsedSections}
-            fetchingIds={fetchingIds}
-            refreshProduct={refreshProduct}
-            setView={setView}
-            apiAllowed={apiAllowed}
-          />
-        )}
-        {(view === 'add' || view === 'edit') && (
-          <ProductForm
-            key={editProductId ?? 'new'}
-            setView={setView}
-            editProductId={editProductId}
-            products={products}
-            specs={specs}
-            apiAllowed={apiAllowed}
-            saveProduct={saveProduct}
-          />
+        ) : (
+          <>
+            {view === 'select' && (
+              <SelectView
+                search={search}
+                setSearch={setSearch}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+                selected={selected}
+                setSelected={setSelected}
+                toggleSelect={toggleSelect}
+                openEdit={openEdit}
+                filteredProducts={filteredProducts}
+                brands={brands}
+                specs={specs}
+                fetchingIds={fetchingIds}
+              />
+            )}
+            {view === 'compare' && (
+              <CompareView
+                selectedProducts={selectedProducts}
+                benchmarkId={effectiveBenchmarkId}
+                toggleBenchmark={toggleBenchmark}
+                specs={specs}
+                collapsedSections={collapsedSections}
+                setCollapsedSections={setCollapsedSections}
+                fetchingIds={fetchingIds}
+                refreshProduct={refreshProduct}
+                setView={setView}
+                apiAllowed={apiAllowed}
+              />
+            )}
+            {(view === 'add' || view === 'edit') && (
+              <ProductForm
+                key={editProductId ?? 'new'}
+                setView={setView}
+                editProductId={editProductId}
+                products={products}
+                specs={specs}
+                apiAllowed={apiAllowed}
+                saveProduct={saveProduct}
+              />
+            )}
+          </>
         )}
       </main>
 
-      {view === 'select' && selected.length >= 2 && (
+      {tab === 'compare' && view === 'select' && selected.length >= 2 && (
         <div className="absolute bottom-16 left-0 right-0 px-4 pb-2 z-20 max-w-lg mx-auto">
           <button
             onClick={() => setView('compare')}
@@ -932,14 +961,17 @@ export default function App() {
       <nav className="shrink-0 flex border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
         <button
           className="flex-1 flex flex-col items-center py-2 gap-0.5"
-          onClick={() => { setView('select'); setSelected([]) }}
+          onClick={() => setTab('compare')}
         >
-          <span className="text-lg" style={{ color: view !== 'add' && view !== 'edit' ? BB_BLUE : '#9ca3af' }}>⊞</span>
-          <span className="text-[10px] font-semibold" style={{ color: view !== 'add' && view !== 'edit' ? BB_BLUE : '#9ca3af' }}>Compare</span>
+          <span className="text-lg" style={{ color: tab === 'compare' ? BB_BLUE : '#9ca3af' }}>⊞</span>
+          <span className="text-[10px] font-semibold" style={{ color: tab === 'compare' ? BB_BLUE : '#9ca3af' }}>Compare</span>
         </button>
-        <button className="flex-1 flex flex-col items-center py-2 gap-0.5 opacity-40" disabled>
-          <span className="text-lg text-gray-400">◎</span>
-          <span className="text-[10px] font-semibold text-gray-400">Tracker</span>
+        <button
+          className="flex-1 flex flex-col items-center py-2 gap-0.5"
+          onClick={() => setTab('tracker')}
+        >
+          <span className="text-lg" style={{ color: tab === 'tracker' ? BB_BLUE : '#9ca3af' }}>▦</span>
+          <span className="text-[10px] font-semibold" style={{ color: tab === 'tracker' ? BB_BLUE : '#9ca3af' }}>Tracker</span>
         </button>
       </nav>
 
