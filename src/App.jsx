@@ -805,6 +805,28 @@ export default function App() {
       custom_product: customProduct ?? null,
     })
     if (error) throw error
+
+    // Auto-add unknown products to the compare table
+    if (customProduct) {
+      const KNOWN_BRANDS = [
+        'Apple', 'Google', 'Samsung', 'Garmin', 'Fitbit', 'Whoop', 'Oura',
+        'Polar', 'Suunto', 'Fossil', 'Amazfit', 'Huawei', 'Xiaomi', 'OnePlus',
+        'Withings', 'Coros', 'Sony', 'Casio',
+      ]
+      const name = customProduct.trim()
+      const knownBrand = KNOWN_BRANDS.find(b => name.toLowerCase().startsWith(b.toLowerCase() + ' '))
+      const brand = knownBrand ?? name.split(' ')[0]
+      const model = name.slice(brand.length).trim()
+
+      if (brand && model) {
+        const { data: existing } = await supabase
+          .from('products').select('id').ilike('brand', brand).ilike('model', model).maybeSingle()
+        if (!existing) {
+          await supabase.from('products').insert({ brand, model, name: `${brand} ${model}`, category: 'Wearables' })
+        }
+      }
+    }
+
     const { data } = await supabase.from('tracker_logs').select('*').order('logged_at', { ascending: false }).limit(5000)
     setTrackerLogs(data ?? [])
   }, [])
