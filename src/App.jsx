@@ -830,9 +830,9 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brand, model }),
     })
-    if (!res.ok) throw new Error(`API call failed: ${res.status}`)
-    const { variants: fetched, error: apiErr } = await res.json()
-    if (apiErr) throw new Error(apiErr)
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok || payload.error) throw new Error(payload.error || `HTTP ${res.status}`)
+    const fetched = payload.variants
     if (!fetched?.length) throw new Error('No variants returned by API')
 
     await supabase.from('tracker_variants').delete().eq('product_id', product.id)
