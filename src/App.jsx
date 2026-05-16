@@ -201,7 +201,7 @@ function SettingsModal({ apiAllowed, toggleApiAllowed, onClose }) {
               }`}
               placeholder="PIN"
             />
-            {pinError && <p className="text-xs text-red-500 mt-1">Incorrect PIN (expected {API_PIN.length} digits)</p>}
+            {pinError && <p className="text-xs text-red-500 mt-1">Incorrect PIN</p>}
             <div className="flex gap-2 mt-3">
               <button
                 type="button"
