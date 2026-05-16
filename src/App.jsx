@@ -798,6 +798,58 @@ export default function App() {
     setTrackerLogs(prev => prev.filter(l => l.id !== logId))
   }, [])
 
+  const setupVariants = useCallback(async (customProductName) => {
+    if (!apiAllowed) throw new Error('API not enabled')
+
+    const KNOWN_BRANDS = [
+      'Apple', 'Google', 'Samsung', 'Garmin', 'Fitbit', 'Whoop', 'Oura',
+      'Polar', 'Suunto', 'Fossil', 'Amazfit', 'Huawei', 'Xiaomi', 'OnePlus',
+      'Withings', 'Coros', 'Sony', 'Casio',
+    ]
+    const name = customProductName.trim()
+    const knownBrand = KNOWN_BRANDS.find(b => name.toLowerCase().startsWith(b.toLowerCase() + ' '))
+    const brand = knownBrand ?? name.split(' ')[0]
+    const model = name.slice(brand.length).trim()
+
+    if (!brand || !model) throw new Error('Could not parse brand/model from product name')
+
+    let { data: product } = await supabase
+      .from('products').select('id').ilike('brand', brand).ilike('model', model).maybeSingle()
+
+    if (!product) {
+      const { data: inserted, error: insertErr } = await supabase.from('products').insert({
+        brand, model, name: `${brand} ${model}`, category: 'Wearables',
+        variant: null, size: null, colors: null,
+      }).select().single()
+      if (insertErr) throw new Error(`Product insert failed: ${insertErr.message}`)
+      product = inserted
+    }
+
+    const res = await fetch('/api/fetch-variants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand, model }),
+    })
+    if (!res.ok) throw new Error(`API call failed: ${res.status}`)
+    const { variants: fetched, error: apiErr } = await res.json()
+    if (apiErr) throw new Error(apiErr)
+    if (!fetched?.length) throw new Error('No variants returned by API')
+
+    await supabase.from('tracker_variants').delete().eq('product_id', product.id)
+
+    const rows = fetched.map(v => ({
+      product_id: product.id,
+      color: v.color ?? null,
+      variant: v.variant ?? null,
+      size: v.size ?? null,
+    }))
+
+    const { error: varInsertErr } = await supabase.from('tracker_variants').insert(rows)
+    if (varInsertErr) throw new Error(`Variants insert failed: ${varInsertErr.message}`)
+
+    await loadAll()
+  }, [apiAllowed, loadAll])
+
   const submitLog = useCallback(async (variantId, notes, customProduct) => {
     const { error } = await supabase.from('tracker_logs').insert({
       variant_id: variantId ?? null,
@@ -982,6 +1034,8 @@ export default function App() {
             logs={trackerLogs}
             onSubmitLog={submitLog}
             onDeleteLog={deleteLog}
+            apiAllowed={apiAllowed}
+            onSetupVariants={setupVariants}
           />
         ) : (
           <>

@@ -708,6 +708,63 @@ function RecentLogs({ logs, variantMap, onDelete }) {
   )
 }
 
+// ─── UnknownProducts ─────────────────────────────────────────────────────────
+
+function UnknownProducts({ products, apiAllowed, onSetupVariants }) {
+  const [states, setStates] = useState({})
+
+  async function handleSetup(name) {
+    setStates(s => ({ ...s, [name]: 'loading' }))
+    try {
+      await onSetupVariants(name)
+    } catch (err) {
+      setStates(s => ({ ...s, [name]: err.message || 'Error' }))
+    }
+  }
+
+  return (
+    <div className="px-4 pb-4">
+      <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Unrecognized Products</h2>
+      <p className="text-xs text-gray-400 mb-3">
+        {apiAllowed
+          ? 'Tap "Set up" to fetch variants via API.'
+          : 'Enable API in ⚙ settings to set up variants.'}
+      </p>
+      <div className="flex flex-col gap-2">
+        {products.map(name => {
+          const state = states[name]
+          return (
+            <div
+              key={name}
+              className="flex items-center justify-between gap-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-3 py-2.5"
+            >
+              <p className="text-xs font-medium text-gray-900 dark:text-white flex-1 min-w-0 truncate">{name}</p>
+              {state === 'loading' ? (
+                <span className="text-xs text-gray-400 animate-pulse shrink-0">Fetching…</span>
+              ) : (
+                <div className="flex items-center gap-2 shrink-0">
+                  {state && state !== 'loading' && (
+                    <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={state}>{state}</span>
+                  )}
+                  <button
+                    onClick={() => handleSetup(name)}
+                    disabled={!apiAllowed || state === 'loading'}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-opacity ${!apiAllowed ? 'opacity-40 cursor-not-allowed' : 'active:opacity-80'}`}
+                    style={{ background: BB_BLUE }}
+                    title={!apiAllowed ? 'Enable API in settings first' : 'Fetch variants via API'}
+                  >
+                    Set up
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── DraggableFAB ─────────────────────────────────────────────────────────────
 
 function DraggableFAB({ onClick }) {
@@ -767,12 +824,28 @@ function DraggableFAB({ onClick }) {
   )
 }
 
-export default function TrackerView({ variants, logs, onSubmitLog, onDeleteLog }) {
+export default function TrackerView({ variants, logs, onSubmitLog, onDeleteLog, apiAllowed, onSetupVariants }) {
   const [showSheet, setShowSheet] = useState(false)
   const [preselect, setPreselect] = useState(null)
 
   const variantMap = useMemo(() => Object.fromEntries(variants.map(v => [v.id, v])), [variants])
   const topThisWeek = useMemo(() => getTopThisWeek(logs, variantMap, 6), [logs, variantMap])
+
+  const unknownProducts = useMemo(() => {
+    const variantProductNames = new Set(
+      variants.map(v => `${v.product.brand} ${v.product.model}`.toLowerCase())
+    )
+    const seen = new Set()
+    const result = []
+    for (const log of logs) {
+      if (!log.custom_product) continue
+      const key = log.custom_product.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      if (!variantProductNames.has(key)) result.push(log.custom_product)
+    }
+    return result
+  }, [variants, logs])
 
   function openSheet(preselectData = null) {
     setPreselect(preselectData)
@@ -839,6 +912,18 @@ export default function TrackerView({ variants, logs, onSubmitLog, onDeleteLog }
         </div>
 
         <div className="border-t border-gray-100 dark:border-gray-800 mx-4 my-3" />
+
+        {/* Unknown products — need variant setup */}
+        {unknownProducts.length > 0 && (
+          <>
+            <UnknownProducts
+              products={unknownProducts}
+              apiAllowed={apiAllowed}
+              onSetupVariants={onSetupVariants}
+            />
+            <div className="border-t border-gray-100 dark:border-gray-800 mx-4 my-3" />
+          </>
+        )}
 
         {/* Recent logs with delete */}
         <RecentLogs logs={logs} variantMap={variantMap} onDelete={onDeleteLog} />
