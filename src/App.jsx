@@ -690,7 +690,7 @@ function ProductForm({ setView, editProductId, products, specs, apiAllowed, save
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tab, setTab] = useState('compare')
+  const [tab, setTab] = useState('tracker')
   const [view, setView] = useState('select')
   const [editProductId, setEditProductId] = useState(null)
   const [products, setProducts] = useState([])
