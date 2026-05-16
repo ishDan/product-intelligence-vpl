@@ -610,8 +610,12 @@ function DemandGraph({ logs, variantMap }) {
 
 // ─── TrackerView ──────────────────────────────────────────────────────────────
 
+const DELETE_PIN = (import.meta.env.VITE_API_PIN ?? '').trim()
+
 function RecentLogs({ logs, variantMap, onDelete }) {
   const [confirmId, setConfirmId] = useState(null)
+  const [pinEntry, setPinEntry] = useState('')
+  const [pinError, setPinError] = useState(false)
   const recent = logs.slice(0, 20)
 
   if (recent.length === 0) return null
@@ -636,29 +640,66 @@ function RecentLogs({ logs, variantMap, onDelete }) {
     return `${diffDay}d ago`
   }
 
+  function startConfirm(id) {
+    setConfirmId(id)
+    setPinEntry('')
+    setPinError(false)
+  }
+
+  function cancelConfirm() {
+    setConfirmId(null)
+    setPinEntry('')
+    setPinError(false)
+  }
+
+  function handleDelete(logId) {
+    if (!DELETE_PIN || pinEntry.trim() !== DELETE_PIN) {
+      setPinError(true)
+      setPinEntry('')
+      return
+    }
+    onDelete(logId)
+    cancelConfirm()
+  }
+
   return (
     <div className="px-4 pb-6">
       <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Recent Logs</h2>
       <div className="flex flex-col gap-2">
         {recent.map(log => (
-          <div key={log.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{logLabel(log)}</p>
-              {log.notes && <p className="text-[10px] text-gray-400 truncate mt-0.5">{log.notes}</p>}
-              <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(log.logged_at)}</p>
+          <div key={log.id} className="rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{logLabel(log)}</p>
+                {log.notes && <p className="text-[10px] text-gray-400 truncate mt-0.5">{log.notes}</p>}
+                <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(log.logged_at)}</p>
+              </div>
+              {confirmId === log.id ? (
+                <button onClick={cancelConfirm} className="text-xs text-gray-400 shrink-0 px-2 py-1">Cancel</button>
+              ) : (
+                <button onClick={() => startConfirm(log.id)} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm shrink-0">✕</button>
+              )}
             </div>
-            {confirmId === log.id ? (
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => setConfirmId(null)} className="text-xs text-gray-400 px-2 py-1">Keep</button>
+            {confirmId === log.id && (
+              <div className="px-3 pb-3 flex gap-2 items-center border-t border-gray-100 dark:border-gray-800 pt-2.5">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  autoFocus
+                  placeholder="Enter PIN to delete"
+                  value={pinEntry}
+                  onChange={e => { setPinEntry(e.target.value); setPinError(false) }}
+                  onKeyDown={e => e.key === 'Enter' && handleDelete(log.id)}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 dark:text-white border outline-none ${pinError ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'}`}
+                />
                 <button
-                  onClick={() => { onDelete(log.id); setConfirmId(null) }}
-                  className="text-xs font-semibold text-white px-2 py-1 rounded-lg bg-red-500"
+                  onClick={() => handleDelete(log.id)}
+                  className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-red-500 shrink-0"
                 >
                   Delete
                 </button>
               </div>
-            ) : (
-              <button onClick={() => setConfirmId(log.id)} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm shrink-0">✕</button>
             )}
           </div>
         ))}
