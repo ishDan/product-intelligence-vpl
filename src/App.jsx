@@ -822,7 +822,13 @@ export default function App() {
         const { data: existing } = await supabase
           .from('products').select('id').ilike('brand', brand).ilike('model', model).maybeSingle()
         if (!existing) {
-          await supabase.from('products').insert({ brand, model, name: `${brand} ${model}`, category: 'Wearables' })
+          const { error: insertErr } = await supabase.from('products').insert({
+            brand, model,
+            name: `${brand} ${model}`,
+            category: 'Wearables',
+            variant: null, size: null, colors: null,
+          })
+          if (insertErr) console.error('Auto-add product failed:', insertErr.message)
         }
       }
     }
