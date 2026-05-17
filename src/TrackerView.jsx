@@ -599,9 +599,14 @@ function CompactTooltip({ active, payload, label }) {
             <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: entry.color }} />
             <div
               className="flex-1 min-w-0 overflow-x-auto"
-              style={{ WebkitOverflowScrolling: 'touch' }}
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x',
+                maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+              }}
             >
-              <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap inline-block">
+              <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap inline-block pr-3">
                 {entry.name}
               </span>
             </div>
