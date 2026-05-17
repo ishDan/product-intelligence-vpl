@@ -583,11 +583,17 @@ function CompactTooltip({ active, payload, label }) {
   const items = payload.filter(p => p.value > 0)
   if (!items.length) return null
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg text-xs max-w-[180px]">
+    <div
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg text-xs"
+      style={{ width: 200, maxWidth: 200 }}
+    >
       <div className="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700 font-bold text-gray-900 dark:text-white">
         {label}
       </div>
-      <div className="px-2.5 py-1.5 max-h-32 overflow-y-auto flex flex-col gap-1">
+      <div
+        className="px-2.5 py-1.5 flex flex-col gap-1"
+        style={{ maxHeight: 140, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+      >
         {items.map((entry, i) => (
           <div key={i} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: entry.color }} />
