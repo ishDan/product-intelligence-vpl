@@ -642,20 +642,25 @@ function DemandGraph({ logs, variantMap, variants }) {
           <Tooltip
             contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '12px' }}
           />
-          {displayGroups.map((g, i) => (
-            <Area
-              key={g}
-              type="monotone"
-              dataKey={g}
-              stackId="1"
-              stroke={CHART_COLORS[groups.indexOf(g) % CHART_COLORS.length]}
-              fill={CHART_COLORS[groups.indexOf(g) % CHART_COLORS.length]}
-              fillOpacity={0.65}
-              strokeWidth={1.5}
-              onClick={() => setFocusGroup(focusGroup === g ? null : g)}
-              style={{ cursor: 'pointer' }}
-            />
-          ))}
+          {displayGroups.map((g, i) => {
+            const color = CHART_COLORS[groups.indexOf(g) % CHART_COLORS.length]
+            return (
+              <Area
+                key={g}
+                type="monotone"
+                dataKey={g}
+                stackId="1"
+                stroke={color}
+                fill={color}
+                fillOpacity={0.65}
+                strokeWidth={1.5}
+                dot={{ r: 3, fill: color, stroke: color }}
+                activeDot={{ r: 5, fill: color, stroke: '#fff', strokeWidth: 2 }}
+                onClick={() => setFocusGroup(focusGroup === g ? null : g)}
+                style={{ cursor: 'pointer' }}
+              />
+            )
+          })}
         </AreaChart>
       </ResponsiveContainer>
 
