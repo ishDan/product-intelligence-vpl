@@ -348,7 +348,7 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, onAddRestockItem, 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl flex flex-col max-h-[92vh]"
+        className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl flex flex-col max-h-[88dvh]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-center px-5 pt-5 pb-3 shrink-0">
