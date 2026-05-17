@@ -577,6 +577,30 @@ function TrackerLogSheet({ variants, logs, onClose, onSubmit, onAddRestockItem, 
 
 // ─── DemandGraph ──────────────────────────────────────────────────────────────
 
+function CompactTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  // Recharts stacks emit zero-valued entries for every series; filter to actual hits.
+  const items = payload.filter(p => p.value > 0)
+  if (!items.length) return null
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg text-xs max-w-[180px]">
+      <div className="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700 font-bold text-gray-900 dark:text-white">
+        {label}
+      </div>
+      <div className="px-2.5 py-1.5 max-h-32 overflow-y-auto flex flex-col gap-1">
+        {items.map((entry, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: entry.color }} />
+            <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{entry.name}</span>
+            <span className="ml-1 font-semibold text-gray-900 dark:text-white">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
 function DemandGraph({ logs, variantMap, variants }) {
   const [range, setRange] = useState('weekly')
   const [drilldown, setDrilldown] = useState('product')
@@ -639,9 +663,7 @@ function DemandGraph({ logs, variantMap, variants }) {
         <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
           <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} />
-          <Tooltip
-            contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '12px' }}
-          />
+          <Tooltip content={<CompactTooltip />} />
           {displayGroups.map((g, i) => {
             const color = CHART_COLORS[groups.indexOf(g) % CHART_COLORS.length]
             return (
@@ -665,12 +687,12 @@ function DemandGraph({ logs, variantMap, variants }) {
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2 max-h-20 overflow-y-auto">
         {groups.map((g, i) => (
           <button
             key={g}
             onClick={() => setFocusGroup(focusGroup === g ? null : g)}
-            className={`flex items-center gap-1.5 text-xs shrink-0 whitespace-nowrap transition-opacity ${focusGroup && focusGroup !== g ? 'opacity-30' : ''}`}
+            className={`flex items-center gap-1.5 text-xs transition-opacity ${focusGroup && focusGroup !== g ? 'opacity-30' : ''}`}
           >
             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
             <span className="text-gray-700 dark:text-gray-300">{g}</span>
